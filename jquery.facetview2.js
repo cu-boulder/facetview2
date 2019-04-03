@@ -80,7 +80,7 @@ if (!Array.prototype.indexOf) {
 })(jQuery);
 
 function safeId(s) {
-    return s.replace(/\./gi,'_').replace(/\:/gi,'_')
+    return s.replace(/\./gi,'_').replace(/\:/gi,'_').replace(/@/, '_');
 }
 
 // get the right facet element from the page
@@ -159,7 +159,7 @@ function postRender(options, context) {}
 
 function shareableUrl(options, query_part_only, include_fragment) {
     var source = elasticSearchQuery({"options" : options, "include_facets" : options.include_facets_in_url, "include_fields" : options.include_fields_in_url})
-    var querypart = "?source=" + encodeURIComponent(serialiseQueryObject(source))
+    var querypart = "?source_content_type=application%2Fjson&source=" + encodeURIComponent(serialiseQueryObject(source))
     include_fragment = include_fragment === undefined ? true : include_fragment
     if (include_fragment) {
         var fragment_identifier = options.url_fragment_identifier ? options.url_fragment_identifier : "";
@@ -225,7 +225,7 @@ function getUrlVars() {
             "search_url" : "http://localhost:9200/_search",
             
             // datatype for ajax requests to use - overall recommend using jsonp
-            "datatype" : "jsonp",
+//DRE            "datatype" : "jsonp",
             
             // if set, should be either * or ~
             // if *, * will be prepended and appended to each string in the freetext search term
@@ -236,6 +236,7 @@ function getUrlVars() {
             // due to a bug in elasticsearch's clustered node facet counts, we need to inflate
             // the number of facet results we need to ensure that the results we actually want are
             // accurate.  This option tells us by how much.
+            // DRE 2019-02-04 --- verify if this is still a bug and how this works
             "elasticsearch_facet_inflation" : 100,
             
             ///// query aspects /////////////////////////////
@@ -331,7 +332,7 @@ function getUrlVars() {
             "default_facet_hidden" : false,
             "default_facet_size" : 10,
             "default_facet_operator" : "AND",  // logic
-            "default_facet_order" : "count",
+            "default_facet_order" : "desc",
             "default_facet_hide_inactive" : false,
             "default_facet_deactivate_threshold" : 0, // equal to or less than this number will deactivate the facet
             "default_facet_controls" : true,
@@ -682,19 +683,19 @@ function getUrlVars() {
             
             // set the search order
             // NOTE: that this interface only supports single field ordering
-            var sorting = options.sort;
+//DRE            var sorting = options.sort;
 
-            for (var i = 0; i < sorting.length; i++) {
-                var so = sorting[i];
-                var fields = Object.keys(so);
-                for (var j = 0; j < fields.length; j++) {
-                    var dir = so[fields[j]]["order"];
-                    options.behaviour_set_order(options, obj, {order: dir});
-                    options.behaviour_set_order_by(options, obj, {orderby: fields[j]});
-                    break
-                }
-                break
-            }
+//            for (var i = 0; i < sorting.length; i++) {
+//                var so = sorting[i];
+//                var fields = Object.keys(so);
+//                for (var j = 0; j < fields.length; j++) {
+//                    var dir = so[fields[j]]["order"];
+//                    options.behaviour_set_order(options, obj, {order: dir});
+//                    options.behaviour_set_order_by(options, obj, {orderby: fields[j]});
+//                    break
+//                }
+//                break
+//            }
             
             // set the search field
             options.behaviour_set_search_field(options, obj, {field : options.searchfield});
@@ -1179,7 +1180,7 @@ function getUrlVars() {
                         var view = false;
                         for (var i = 0; i < values.length; i = i + 1) {
                             var val = values[i];
-                            if (val.count > 0) {
+                            if (val.doc_count > 0) {
                                 view = true;
                                 break
                             }
@@ -1190,7 +1191,7 @@ function getUrlVars() {
                         var view = false;
                         for (var i = 0; i < values.length; i = i + 1) {
                             var val = values[i];
-                            if (val.count > 0) {
+                            if (val.doc_count > 0) {
                                 view = true;
                                 break
                             }
@@ -1201,7 +1202,7 @@ function getUrlVars() {
                         var view = false;
                         for (var i = 0; i < values.length; i = i + 1) {
                             var val = values[i];
-                            if (val.count > 0) {
+                            if (val.doc_count > 0) {
                                 view = true;
                                 break
                             }
@@ -1311,11 +1312,13 @@ function getUrlVars() {
                 
                 // get the records to be displayed, limited by the size and record against
                 // the options object
-                var records = results["facets"][field];
+                //DRE var records = results["facets"][field];
+                var records = rawdata.aggregations[field].buckets
                 // special rule for handling statistical, range and histogram facets
-                if (records.hasOwnProperty("_type") && records["_type"] === "statistical") {
-                    facet["values"] = records
-                } else {
+                // DRE --- prob can remove next 2 lines of test. Also use rawdata.aggregations[field].buckets for records
+//                if (rawdata.aggregations[field].hasOwnProperty && records["_type"] === "statistical") {
+//                   facet["values"] = records
+//               } else {
                     if (!records) { records = [] }
                     if (size) { // this means you can set the size of a facet to something false (like, false, or 0, and size will be ignored)
                         if (facet.type === "terms" && facet.ignore_empty_string) {
@@ -1334,7 +1337,7 @@ function getUrlVars() {
                     } else {
                         facet["values"] = records
                     }
-                }
+//                }
 
                 // set the results on the page
                 if (!facet.hidden) {

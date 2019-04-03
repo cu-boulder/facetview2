@@ -1,13 +1,23 @@
-function escapeHtml(unsafe) {
-    if (typeof unsafe.replace !== "function") {
-        return unsafe
+function escapeHtml(unsafe, def) {
+    if (def === undefined) {
+        def = "";
     }
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
+    if (unsafe === undefined || unsafe == null) {
+        return def;
+    }
+    try {
+        if (typeof unsafe.replace !== "function") {
+            return unsafe
+        }
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    } catch(err) {
+        return def;
+    }
 }
 
 /******************************************************************
@@ -410,7 +420,7 @@ function renderTermsFacetValues(options, facet) {
         if (options.exclude_predefined_filters_from_facets && $.inArray(f.term, predefined) > -1) { // note that the datatypes have to match
             continue
         }
-        if ($.inArray(f.term.toString(), selected_filters) === -1) { // the toString helps us with non-string filters (e.g integers)
+        if ($.inArray(f.key.toString(), selected_filters) === -1) { // the toString helps us with non-string filters (e.g integers)
             var append = options.render_terms_facet_result(options, facet, f, selected_filters)
             frag += append
         }
@@ -492,7 +502,7 @@ function renderRangeFacetValues(options, facet) {
         var r = facet["range"][i]
         var f = getValueForRange(r, facet["values"])
         if (f) {
-            if (f.count === 0 && facet.hide_empty_range) {
+            if (f.doc_count === 0 && facet.hide_empty_range) {
                 continue
             }
             var append = options.render_range_facet_result(options, facet, f, r)
@@ -576,7 +586,7 @@ function renderGeoFacetValues(options, facet) {
         var r = facet["distance"][i]
         var f = getValueForRange(r, facet["values"])
         if (f) {
-            if (f.count === 0 && facet.hide_empty_distance) {
+            if (f.doc_count === 0 && facet.hide_empty_distance) {
                 continue
             }
             var append = options.render_geo_facet_result(options, facet, f, r)
@@ -638,7 +648,7 @@ function renderDateHistogramValues(options, facet) {
     for (var i = 0; i < values.length; i++) {
         var f = values[i];
         if (f) {
-            if (f.count === 0 && facet.hide_empty_date_bin) {
+            if (f.doc_count === 0 && facet.hide_empty_date_bin) {
                 continue
             }
 
@@ -688,14 +698,14 @@ function renderTermsFacetResult(options, facet, result, selected_filters) {
      * facet.value_function - the value function to be applied to all displayed values
      */
 
-    var display = result.term
+    var display = result.key
     if (facet.value_function) {
         display = facet.value_function(display)
     }
     var append = '<tr class="facetview_filtervalue" style="display:none;"><td><a class="facetview_filterchoice' +
-                '" data-field="' + facet['field'] + '" data-value="' + escapeHtml(result.term) + '" href="' + escapeHtml(result.term) +
+                '" data-field="' + facet['field'] + '" data-value="' + escapeHtml(result.key) + '" href="' + escapeHtml(result.key) +
                 '"><span class="facetview_filterchoice_text" dir="auto">' + display + '</span>' +
-                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.count + ')</span></a></td></tr>';
+                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.doc_count + ')</span></a></td></tr>';
     return append
 }
 
@@ -711,7 +721,7 @@ function renderRangeFacetResult(options, facet, result, range) {
 
     var append = '<tr class="facetview_filtervalue" style="display:none;"><td><a class="facetview_filterchoice' +
                 '" data-field="' + facet['field'] + '" ' + data_to + data_from + ' href="#"><span class="facetview_filterchoice_text" dir="auto">' + range.display + '</span>' +
-                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.count + ')</span></a></td></tr>';
+                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.doc_count + ')</span></a></td></tr>';
     return append
 }
 
@@ -727,7 +737,7 @@ function renderGeoFacetResult(options, facet, result, range) {
 
     var append = '<tr class="facetview_filtervalue" style="display:none;"><td><a class="facetview_filterchoice' +
                 '" data-field="' + facet['field'] + '" ' + data_to + data_from + ' href="#"><span class="facetview_filterchoice_text" dir="auto">' + range.display + '</span>' +
-                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.count + ')</span></a></td></tr>';
+                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.doc_count + ')</span></a></td></tr>';
     return append
 }
 
@@ -749,7 +759,7 @@ function renderDateHistogramResult(options, facet, result, next) {
 
     var append = '<tr class="facetview_filtervalue" style="display:none;"><td><a class="facetview_filterchoice' +
                 '" data-field="' + facet['field'] + '" ' + data_to + data_from + ' href="#"><span class="facetview_filterchoice_text" dir="auto">' + escapeHtml(display) + '</span>' +
-                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.count + ')</span></a></td></tr>';
+                '<span class="facetview_filterchoice_count" dir="ltr"> (' + result.doc_count + ')</span></a></td></tr>';
     return append
 }
 

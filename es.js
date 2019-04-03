@@ -71,9 +71,10 @@ function optionsFromQuery(query) {
         
         // if this is a filtered query, pull must and qs out of the filter
         // otherwise the root of the query is the query_string object
-        if (sq.filtered) {
-            must = sq.filtered.filter.bool.must;
-            qs = sq.filtered.query
+        if (sq.bool) {
+//DRE 1.7            must = sq.bool.filter.bool.must;
+            must = sq.bool.must;
+            qs = sq.bool.query
         } else {
             qs = sq
         }
@@ -296,10 +297,14 @@ function elasticSearchQuery(params) {
     
     // if there are filter constraints (filter_must) then we create a filtered query,
     // otherwise make a normal query
+    // DRE -- no queries under filters, query_string needs to be under "must"
+    // DRE -- also "match_all" the ftq var is in the wrong location and doesn't conform anymore
     var qs = undefined;
     if (filter_must.length > 0) {
-        qs = {"query" : {"filtered" : {"filter" : {"bool" : {"must" : filter_must}}}}};
-        qs.query.filtered["query"] = ftq;
+ //DRE 1.7       qs = {"query" : {"bool" : {"filter" : {"bool" : {"must" : filter_must}}}}};
+        qs = {"query" : {"bool" : {"must" : filter_must}}};
+//DRE 1.7        qs.query.bool["query"] = ftq;
+        qs.query.bool.must.push(ftq);
     } else {
         qs = {"query" : ftq}
     }
@@ -324,7 +329,7 @@ function elasticSearchQuery(params) {
     
     // facets
     if (include_facets) {
-        qs['facets'] = {};
+        qs['aggs'] = {};
         for (var item = 0; item < options.facets.length; item++) {
             var defn = options.facets[item];
             if (defn.disabled) { continue }
@@ -336,7 +341,14 @@ function elasticSearchQuery(params) {
             
             var facet = {};
             if (defn.type === "terms") {
-                facet["terms"] = {"field" : defn["field"], "size" : size, "order" : defn["order"]}
+                var order = {}
+                order.count={"_count":"desc"}
+                order.reverse_count={"_count":"asc"}
+                order.term={"_key":"desc"}
+                order.reverse_term={"_key":"asc"}
+//DRE new order is an object                facet["terms"] = {"field" : defn["field"], "size" : size, "order" : defn["order"]}
+                facet["terms"] = {"field" : defn["field"], "size" : size, "order" : order[defn["order"]]}
+//                facet["terms"] = {"field" : defn["field"], "size" : size, "order" : {defn["order"]}}
             } else if (defn.type === "range") {
                 var ranges = [];
                 for (var r=0; r < defn["range"].length; r=r+1) {
@@ -347,7 +359,10 @@ function elasticSearchQuery(params) {
                     ranges.push(robj)
                 }
                 facet["range"] = { };
-                facet["range"][defn.field] = ranges
+                var r = {};
+                r.field=defn["field"]
+                r.ranges=ranges
+                facet["range"] = r
             } else if (defn.type === "geo_distance") {
                 facet["geo_distance"] = {}
                 facet["geo_distance"][defn["field"]] = [defn.lon, defn.lat]; // note that the order is lon/lat because of GeoJSON
@@ -368,13 +383,13 @@ function elasticSearchQuery(params) {
             } else if (defn.type === "date_histogram") {
                 facet["date_histogram"] = {field : defn["field"], interval : defn["interval"]}
             }
-            qs["facets"][defn["field"]] = facet
+            qs["aggs"][defn["field"]] = facet
         }
         
         // and any extra facets
         // NOTE: this does not include any treatment of the facet size inflation that may be required
         if (options.extra_facets) {
-            $.extend(true, qs['facets'], options.extra_facets );
+            $.extend(true, qs['aggs'], options.extra_facets );
         }
     }
     
@@ -506,6 +521,7 @@ function doElasticSearchQuery(params) {
     var search_url = params.search_url;
     var queryobj = params.queryobj;
     var datatype = params.datatype;
+    var contenttype = "application/json"
     
     // serialise the query
     var querystring = serialiseQueryObject(queryobj);
@@ -514,8 +530,10 @@ function doElasticSearchQuery(params) {
     $.ajax({
         type: "get",
         url: search_url,
-        data: {source: querystring},
+        data: {source_content_type: contenttype, source: querystring},
         dataType: datatype,
+        contentType: contenttype,
+        source_content_type: contenttype,
         success: elasticSearchSuccess(success_callback),
         complete: complete_callback
     });
